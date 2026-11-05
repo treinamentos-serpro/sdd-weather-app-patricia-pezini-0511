@@ -102,6 +102,99 @@ Decisões-chave:
 
 ---
 
+## Desenvolver a UI sem API
+
+Execute `pnpm dev` para abrir o protótipo composto em [`App`](src/App.tsx).
+A tela inicia em `idle`. Busque “São Paulo” (sem distinção de acentos ou
+maiúsculas) para ver o mock; outros nomes mostram o estado vazio. O seletor
+“Cenário de demonstração” permite visualizar `idle`, `loading`, `empty`, `error`
+e `success`. No cenário de erro, “Tentar novamente” abre o sucesso fictício,
+sem simular uma requisição. O cenário loading permanece ativo até escolher
+outro cenário e desabilita a busca.
+
+A unidade começa em Celsius e fica somente no estado da UI, preservada entre
+cenários; recarregar restaura Celsius. Os componentes convertem na renderização
+a partir do mock original. Esta entrega é apenas um protótipo: a seleção de
+cidades via API, o hook e a recuperação de falhas reais ainda não estão integrados.
+
+Os contratos compartilhados estão em [`src/types/weather.ts`](src/types/weather.ts).
+Para montar componentes sem chamadas de rede, importe o objeto tipado:
+
+```ts
+import { mockWeatherData } from './mocks/weather';
+```
+
+O caminho acima considera um arquivo diretamente em `src/`. O mock contém
+São Paulo, condições atuais e cinco dias consecutivos, de 05/11/2026 a
+09/11/2026, no fuso `America/Sao_Paulo`. Todas as temperaturas estão em Celsius.
+As datas são fixas para manter o exemplo reproduzível; não representam uma
+previsão real nem acompanham o dia atual. O mock não é conectado automaticamente
+à aplicação e não deve substituir o serviço de produção.
+
+O componente [`SearchBar`](src/components/SearchBar.tsx) recebe
+`onSearch(city: string)` e `disabled` (opcional, padrão `false`). O formulário
+envia o nome sem espaços externos por botão ou Enter, sem acessar a API.
+Entradas vazias ou com caracteres de controle exibem um alerta acessível.
+Quando `disabled` está ativo, o campo e o botão ficam desabilitados.
+
+O [`UnitToggle`](src/components/UnitToggle.tsx) é controlado pelas props
+`unit: Unit` e `onChange(unit: Unit)`. Os botões °C/°F anunciam a seleção com
+`aria-pressed`; Tab/Shift+Tab navegam e Enter/Espaço ativam o botão focado.
+O componente apenas notifica a seleção, sem converter dados ou acessar a API.
+
+O [`CurrentWeather`](src/components/CurrentWeather.tsx) recebe `city`, `current`
+e `unit` e apresenta cidade, temperatura em destaque, ícone WMO e condição.
+Usa [`temperature`](src/lib/temperature.ts) para conversão/arredondamento e
+[`weatherCodes`](src/lib/weatherCodes.ts) para ícones. Os ícones são decorativos,
+pois a condição já é descrita em texto. Umidade, vento, precipitação e pressão
+não fazem parte do contrato atual e não são exibidos.
+
+[`ForecastList`](src/components/ForecastList.tsx) recebe `forecast: ForecastDay[]`
+e `unit`, ordena os registros pela data e mostra até cinco cards em grid
+responsivo (2/3/5 colunas). [`ForecastCard`](src/components/ForecastCard.tsx)
+recebe `day` e `unit` e exibe dia em pt-BR, ícone, condição, máxima e mínima.
+[`formatDay`](src/lib/format.ts) preserva a data local sem deslocamento pelo
+fuso do navegador. A probabilidade de chuva não integra o contrato atual e
+não é exibida. Lista vazia mostra erro; de um a quatro dias mostram aviso de
+previsão incompleta. Recuperação de consultas fica a cargo da futura integração.
+
+Os componentes em [`states/`](src/components/states/) podem ser compostos pela
+interface sem iniciar consultas:
+
+- [`LoadingState`](src/components/states/LoadingState.tsx): anuncia “Carregando...”
+  com `role="status"` e respeita a preferência por movimento reduzido.
+- [`ErrorState`](src/components/states/ErrorState.tsx): recebe `message`, anunciada
+  com `role="alert"`, e `onRetry` opcional; o botão “Tentar novamente” só aparece
+  quando o callback é fornecido.
+- [`EmptyState`](src/components/states/EmptyState.tsx): recebe `title` e `hint`,
+  associados a uma região acessível.
+
+---
+
+## Acessibilidade e responsividade do protótipo
+
+Melhorias aplicadas na revisão:
+
+- Nomes visíveis e acessíveis idênticos nos controles Celsius/Fahrenheit.
+- Resultados vazios, sucesso e mudança de unidade anunciados em região `status`
+  persistente, sem retirar o foco da busca.
+- Retry devolve foco ao conteúdo; o destino do link de salto tem foco visível.
+- Bordas dos campos e dos controles de unidade com contraste reforçado.
+- Quebra de texto, campos sem largura mínima implícita e ícones/espaçamentos
+  adaptados para evitar transbordamento em telas estreitas e texto ampliado.
+
+[`accessibility.spec.ts`](tests/e2e/accessibility.spec.ts) verifica os cinco
+cenários de 320 a 1440 px, texto a 200% em 320 px, teclado, movimento reduzido,
+contraste do campo/foco e auditoria axe com regras WCAG 2.2 A/AA. Execute
+`pnpm test:e2e` para rodar em Chromium e WebKit móvel.
+
+A auditoria automatizada não certifica conformidade completa: ainda é necessária
+validação humana com leitor de tela, modo de alto contraste e a matriz completa
+de navegadores da spec. Estados de API e previsão parcial também deverão ser
+auditados quando integrados ao protótipo.
+
+---
+
 ## Stack
 
 - **TypeScript** (strict) · **React** · **Vite**

@@ -278,6 +278,13 @@ A primeira fatia antecipa uma entrega utilizável de RF-01 sem esperar forecast 
 
 ### T-26 — Integrar componentes na aplicação
 
+**Incremento de protótipo aprovado:** compor `App` com o mock existente, sem
+serviços nem `useWeather`. Header com marca, busca local e unidade em memória;
+seletor visível de cenários `idle/loading/empty/error/success`, retry demonstrativo
+para sucesso, bootstrap React e estilos Tailwind. A busca compara o nome da
+cidade do mock, sem atribuir seus dados a outra cidade. Este incremento não
+conclui a integração de API nem substitui os critérios finais abaixo.
+
 - **ID:** T-26
 - **Título:** Compor fluxos na tela principal
 - **Descrição:** Conectar `useWeather` aos componentes de busca, condições, previsão, unidade e status.
@@ -298,7 +305,7 @@ A primeira fatia antecipa uma entrega utilizável de RF-01 sem esperar forecast 
 - **Descrição:** Criar testes unitários dedicados às funções puras de conversão, arredondamento e formatação de temperatura.
 - **Critérios de aceite:**
   - Vitest verifica `0 °C → 32 °F`, `10 °C → 50 °F` e `-40 °C → -40 °F`, com os símbolos de unidade correspondentes.
-  - Valores originais `1,5 °C` e `-1,5 °C` são exibidos em Celsius como `2 °C` e `-2 °C`; `0,25 °C` e `-18,25 °C` são exibidos em Fahrenheit como `33 °F` e `-1 °F`.
+  - Valores originais `1,5 °C` e `-1,5 °C` são exibidos em Celsius como `2 °C` e `-2 °C`; `0,25 °C` e `-18,25 °C` são exibidos em Fahrenheit como `32 °F` e `-1 °F`.
   - Alternar a formatação do mesmo valor original de Celsius para Fahrenheit e de volta mantém o resultado Celsius inicial e não modifica a entrada.
   - A execução dos testes não configura DOM nem realiza chamadas de rede.
 - **Dependências:** T-03, T-26.
