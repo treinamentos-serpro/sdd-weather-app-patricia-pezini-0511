@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { convertTemperature, formatTemperature } from '../../src/lib/temperature';
+import {
+  convertTemperature,
+  formatTemperature,
+  unitLabel,
+} from '../../src/lib/temperature';
 import type { Unit } from '../../src/types/weather';
 
 describe('Temperatura', () => {
   it.each([
     [0, 32],
     [10, 50],
+    [100, 212],
     [-40, -40],
   ])('converte %s °C para %s °F', (celsius, fahrenheit) => {
     expect(convertTemperature(celsius, 'fahrenheit')).toBe(fahrenheit);
@@ -21,6 +26,13 @@ describe('Temperatura', () => {
     [-0.1, 'celsius', '0 °C'],
   ])('formata %s em %s como %s', (value, unit, expected) => {
     expect(formatTemperature(value, unit)).toBe(expected);
+  });
+
+  it.each([
+    ['celsius', 'Celsius'],
+    ['fahrenheit', 'Fahrenheit'],
+  ] as const)('retorna o rótulo correto para %s', (unit, expected) => {
+    expect(unitLabel(unit)).toBe(expected);
   });
 
   it('sempre converte a partir do valor original', () => {

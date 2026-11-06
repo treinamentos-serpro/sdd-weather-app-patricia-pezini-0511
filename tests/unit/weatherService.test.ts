@@ -171,6 +171,24 @@ describe('getWeather', () => {
     expect(result.forecast.at(-1)?.date).toBe('2026-11-09');
   });
 
+  it.each([1, 4])(
+    'rejeita previsão com somente %i dias válidos, mesmo com séries alinhadas',
+    async (dayCount) => {
+      const data = forecastResponse();
+      data.daily.time = data.daily.time.slice(0, dayCount);
+      data.daily.temperature_2m_min = data.daily.temperature_2m_min.slice(0, dayCount);
+      data.daily.temperature_2m_max = data.daily.temperature_2m_max.slice(0, dayCount);
+      data.daily.weather_code = data.daily.weather_code.slice(0, dayCount);
+      mockResponse(data);
+
+      await expect(getWeather(city)).rejects.toMatchObject({
+        name: 'WeatherServiceError',
+        kind: 'invalid-response',
+        operation: 'weather',
+      });
+    },
+  );
+
   it.each(['current', 'daily'] as const)('rejeita resposta sem %s', async (field) => {
     const data: Record<string, unknown> = forecastResponse();
     delete data[field];

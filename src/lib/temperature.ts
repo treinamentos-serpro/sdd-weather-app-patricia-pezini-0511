@@ -12,6 +12,10 @@ export function convertTemperature(celsius: number, unit: Unit): number {
   return temperature;
 }
 
+export function unitLabel(unit: Unit): string {
+  return unit === 'fahrenheit' ? 'Fahrenheit' : 'Celsius';
+}
+
 export function formatTemperature(celsius: number, unit: Unit): string {
   const temperature = convertTemperature(celsius, unit);
   const rounded = Math.sign(temperature) * Math.round(Math.abs(temperature));

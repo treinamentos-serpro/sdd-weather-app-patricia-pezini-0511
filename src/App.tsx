@@ -7,6 +7,7 @@ import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
 import { useWeather } from './hooks/useWeather';
+import { unitLabel } from './lib/temperature';
 import type { Unit } from './types/weather';
 
 export default function App() {
@@ -45,9 +46,7 @@ export default function App() {
           {status === 'empty' && 'Nenhuma cidade encontrada.'}
           {status === 'success' &&
             data &&
-            `Clima de ${data.city.name} e previsão de cinco dias disponíveis em ${
-              unit === 'celsius' ? 'Celsius' : 'Fahrenheit'
-            }.`}
+            `Clima de ${data.city.name} e previsão de cinco dias disponíveis em ${unitLabel(unit)}.`}
         </p>
         <main
           ref={mainRef}
