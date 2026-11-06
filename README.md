@@ -102,20 +102,21 @@ Decisões-chave:
 
 ---
 
-## Desenvolver a UI sem API
+## Consultar o clima
 
-Execute `pnpm dev` para abrir o protótipo composto em [`App`](src/App.tsx).
-A tela inicia em `idle`. Busque “São Paulo” (sem distinção de acentos ou
-maiúsculas) para ver o mock; outros nomes mostram o estado vazio. O seletor
-“Cenário de demonstração” permite visualizar `idle`, `loading`, `empty`, `error`
-e `success`. No cenário de erro, “Tentar novamente” abre o sucesso fictício,
-sem simular uma requisição. O cenário loading permanece ativo até escolher
-outro cenário e desabilita a busca.
+Execute `pnpm dev` para abrir o [`App`](src/App.tsx), integrado ao
+[`useWeather`](src/hooks/useWeather.ts) e aos serviços Open-Meteo.
+A tela inicia em `idle`. Ao buscar uma cidade, exibe `loading` e consulta o
+clima do primeiro resultado. Sem correspondências, exibe `empty`; falhas exibem
+`error` com a mensagem do serviço. “Tentar novamente” repete a última operação
+real. No sucesso, exibe as condições atuais e a previsão de cinco dias.
+A busca fica desabilitada enquanto a consulta está em andamento.
 
 A unidade começa em Celsius e fica somente no estado da UI, preservada entre
-cenários; recarregar restaura Celsius. Os componentes convertem na renderização
-a partir do mock original. Esta entrega é apenas um protótipo: a seleção de
-cidades via API, o hook e a recuperação de falhas reais ainda não estão integrados.
+consultas e tentativas; recarregar restaura Celsius. Os componentes convertem
+os dados recebidos na renderização, sem fazer novas chamadas ao trocar unidade.
+
+### Desenvolver componentes sem API
 
 Os contratos compartilhados estão em [`src/types/weather.ts`](src/types/weather.ts).
 Para montar componentes sem chamadas de rede, importe o objeto tipado:
@@ -124,7 +125,7 @@ Para montar componentes sem chamadas de rede, importe o objeto tipado:
 import { mockWeatherData } from './mocks/weather';
 ```
 
-O caminho acima considera um arquivo diretamente em `src/`. O mock contém
+O caminho acima considera um arquivo diretamente em `src/`. O mock de testes contém
 São Paulo, condições atuais e cinco dias consecutivos, de 05/11/2026 a
 09/11/2026, no fuso `America/Sao_Paulo`. Todas as temperaturas estão em Celsius.
 As datas são fixas para manter o exemplo reproduzível; não representam uma
@@ -171,13 +172,13 @@ interface sem iniciar consultas:
 
 ---
 
-## Acessibilidade e responsividade do protótipo
+## Acessibilidade e responsividade
 
 Melhorias aplicadas na revisão:
 
 - Nomes visíveis e acessíveis idênticos nos controles Celsius/Fahrenheit.
 - Resultados vazios, sucesso e mudança de unidade anunciados em região `status`
-  persistente, sem retirar o foco da busca.
+  persistente. O campo mantém o termo enviado e fica desabilitado durante a consulta.
 - Retry devolve foco ao conteúdo; o destino do link de salto tem foco visível.
 - Bordas dos campos e dos controles de unidade com contraste reforçado.
 - Quebra de texto, campos sem largura mínima implícita e ícones/espaçamentos
@@ -190,8 +191,8 @@ contraste do campo/foco e auditoria axe com regras WCAG 2.2 A/AA. Execute
 
 A auditoria automatizada não certifica conformidade completa: ainda é necessária
 validação humana com leitor de tela, modo de alto contraste e a matriz completa
-de navegadores da spec. Estados de API e previsão parcial também deverão ser
-auditados quando integrados ao protótipo.
+de navegadores da spec. Os estados atuais são auditados com APIs interceptadas;
+previsão parcial deverá ser auditada quando implementada.
 
 ---
 

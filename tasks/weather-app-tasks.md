@@ -285,6 +285,14 @@ para sucesso, bootstrap React e estilos Tailwind. A busca compara o nome da
 cidade do mock, sem atribuir seus dados a outra cidade. Este incremento não
 conclui a integração de API nem substitui os critérios finais abaixo.
 
+**Incremento de integração solicitado:** substituir o mock e os controles de
+demonstração de `App` pelo hook `useWeather`, renderizando
+`idle/loading/empty/error/success`. A busca carrega a primeira cidade conforme
+o contrato simplificado do hook; `ErrorState` chama `retry`. A unidade permanece
+local à UI e é passada aos componentes de apresentação. Os testes usam serviços
+mockados no Vitest e interceptação das APIs no Playwright. Seleção manual na UI
+e estados parciais continuam fora deste incremento.
+
 - **ID:** T-26
 - **Título:** Compor fluxos na tela principal
 - **Descrição:** Conectar `useWeather` aos componentes de busca, condições, previsão, unidade e status.

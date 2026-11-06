@@ -6,26 +6,17 @@ import UnitToggle from './components/UnitToggle';
 import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
-import { mockWeatherData } from './mocks/weather';
+import { useWeather } from './hooks/useWeather';
 import type { Unit } from './types/weather';
-
-type ViewState = 'idle' | 'loading' | 'empty' | 'error' | 'success';
-
-function isViewState(value: string): value is ViewState {
-  return ['idle', 'loading', 'empty', 'error', 'success'].includes(value);
-}
 
 export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
-  const [view, setView] = useState<ViewState>('idle');
+  const { status, data, error, search, retry } = useWeather();
   const mainRef = useRef<HTMLElement>(null);
 
-  function handleSearch(city: string) {
-    const matches =
-      city.trim().localeCompare(mockWeatherData.city.name, 'pt-BR', {
-        sensitivity: 'base',
-      }) === 0;
-    setView(matches ? 'success' : 'empty');
+  function handleRetry() {
+    mainRef.current?.focus();
+    void retry();
   }
 
   return (
@@ -47,44 +38,14 @@ export default function App() {
             </div>
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
-          <SearchBar onSearch={handleSearch} disabled={view === 'loading'} />
+          <SearchBar onSearch={search} disabled={status === 'loading'} />
         </header>
 
-        <aside
-          aria-label="Controles de demonstração"
-          className="my-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm backdrop-blur-md"
-        >
-          <p className="mb-3 text-slate-300">
-            Demonstração sem API: dados fictícios de São Paulo, de 05 a 09/11/2026. Busque São Paulo
-            para ver o exemplo; outros nomes não têm dados neste mock.
-          </p>
-          <label htmlFor="demo-state" className="mr-3 font-medium">
-            Cenário de demonstração
-          </label>
-          <select
-            id="demo-state"
-            value={view}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (!isViewState(value)) {
-                throw new Error('Cenário de demonstração inválido.');
-              }
-              setView(value);
-            }}
-            className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-lg border border-slate-400 bg-night-900 px-3 py-2 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-400 sm:mt-0 sm:w-auto"
-          >
-            <option value="idle">Inicial</option>
-            <option value="loading">Carregando</option>
-            <option value="empty">Sem resultados</option>
-            <option value="error">Erro</option>
-            <option value="success">Sucesso</option>
-          </select>
-        </aside>
-
         <p role="status" aria-atomic="true" className="sr-only">
-          {view === 'empty' && 'Nenhuma cidade encontrada.'}
-          {view === 'success' &&
-            `Clima de ${mockWeatherData.city.name} e previsão de cinco dias disponíveis em ${
+          {status === 'empty' && 'Nenhuma cidade encontrada.'}
+          {status === 'success' &&
+            data &&
+            `Clima de ${data.city.name} e previsão de cinco dias disponíveis em ${
               unit === 'celsius' ? 'Celsius' : 'Fahrenheit'
             }.`}
         </p>
@@ -92,43 +53,39 @@ export default function App() {
           ref={mainRef}
           id="main-content"
           tabIndex={-1}
-          className="space-y-6 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400"
+          className="mt-6 space-y-6 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400"
         >
-          {view === 'idle' && (
+          {status === 'idle' && (
             <EmptyState
               title="Consulte o clima de uma cidade"
-              hint="Digite São Paulo no campo de busca para explorar os dados de exemplo."
+              hint="Digite o nome de uma cidade no campo de busca."
             />
           )}
-          {view === 'loading' && <LoadingState />}
-          {view === 'empty' && (
+          {status === 'loading' && <LoadingState />}
+          {status === 'empty' && (
             <EmptyState
               title="Nenhuma cidade encontrada."
-              hint="Nesta demonstração, tente buscar São Paulo."
+              hint="Verifique o nome da cidade e tente novamente."
             />
           )}
-          {view === 'error' && (
-            <ErrorState
-              message="Não foi possível carregar as condições atuais. Tente novamente."
-              onRetry={() => {
-                setView('success');
-                mainRef.current?.focus();
-              }}
-            />
+          {status === 'error' && error && (
+            <ErrorState message={error.message} onRetry={handleRetry} />
           )}
-          {view === 'success' && (
+          {status === 'success' && data && (
             <>
-              <CurrentWeather
-                city={mockWeatherData.city}
-                current={mockWeatherData.current}
-                unit={unit}
-              />
-              <ForecastList forecast={mockWeatherData.forecast} unit={unit} />
+              <CurrentWeather city={data.city} current={data.current} unit={unit} />
+              <ForecastList forecast={data.forecast} unit={unit} />
             </>
           )}
         </main>
         <footer className="mt-10 text-center text-sm text-slate-400">
-          Protótipo de interface · Sem consultas meteorológicas reais
+          Dados meteorológicos fornecidos pela{' '}
+          <a
+            href="https://open-meteo.com/"
+            className="underline hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-400"
+          >
+            Open-Meteo
+          </a>
         </footer>
       </div>
     </div>

@@ -160,6 +160,8 @@ interface WeatherError {
 - **Mapeamento para `City`:** `name` → `name`; `admin1` → `region`; `country` → `country`; `latitude` → `latitude`; `longitude` → `longitude`. Exigir nome não vazio e coordenadas finitas; descartar resultados sem esses campos. Os demais campos, como `id`, `country_code` e o fuso informado na geocodificação, não são necessários ao contrato atual.
 - **Contrato interno:** `Promise<City[]>`; lista vazia é estado `empty`, distinta de erro HTTP, rede ou JSON inválido.
 
+**Implementação da busca:** `src/services/weatherService.ts` exporta `searchCities(name: string): Promise<City[]>` e `WeatherServiceError`, alinhado ao contrato `WeatherError`. O caminho foi ajustado de `openMeteo.ts` para o nome solicitado na implementação. Entrada vazia após `trim` retorna `[]` sem rede; o nome usa `encodeURIComponent`. Falhas HTTP, de rede e de resposta rejeitam com erro tipado. A ausência de `results` representa zero correspondências.
+
 ### Previsão Open-Meteo
 
 - **Endpoint:** `GET https://api.open-meteo.com/v1/forecast`
@@ -210,12 +212,18 @@ interface WeatherError {
   - `WeatherData.forecast`: percorrer `daily.time` por índice e combinar `weather_code[index]`, `temperature_2m_min[index]` e `temperature_2m_max[index]` em um `ForecastDay`. Mapear data, mínima, máxima e código para `date`, `minCelsius`, `maxCelsius`, `weatherCode`; derivar `conditionLabel` do código.
   - Selecionar apenas datas locais de hoje a hoje + quatro dias, em ordem cronológica. Validar que as séries existem e têm valores pareados por índice; filtrar registros inválidos conforme o modelo. Não inferir unidades da resposta: validar `current_units`/`daily_units` como Celsius devido ao parâmetro solicitado.
 - **Contrato interno:** resposta validada vira `WeatherData` associado ao `City` da requisição. Validar atuais e previsão independentemente; zero registros diários válidos é erro de previsão e de um a quatro registros válidos é previsão parcial.
+
+**Contrato da implementação solicitada:** `getWeather(city: City): Promise<WeatherData>` em `src/services/weatherService.ts` exige atuais e cinco dias completos. Esta operação rejeita respostas sem `current` ou `daily`, séries incompletas e valores obrigatórios inválidos com `WeatherServiceError` (`kind: 'invalid-response'`, `operation: 'weather'`), em vez de retornar dados parciais. Mapeia os primeiros cinco índices das séries paralelas, preserva a cidade recebida e usa os rótulos WMO existentes. O tratamento independente de resultados parciais descrito acima permanece fora do escopo desta operação.
 - **Segurança/uso:** chamadas pelo navegador via HTTPS; não há chave de API. Confirmar cobertura, limites, licença/termos e atribuição exigida antes do release, conforme Open Questions da spec.
 - **Documentação oficial:** [Geocoding API](https://open-meteo.com/en/docs/geocoding-api) · [Forecast API](https://open-meteo.com/en/docs).
 
 ## Gerenciamento de estado
 
-O estado da aplicação vive em um único hook `useWeather`, chamado por `App`, e é mantido em memória com `useReducer` tipado. Componentes recebem estado e callbacks por props; não fazem requisições nem mantêm cópias do estado meteorológico. O campo de texto pode permanecer local a `CitySearch` até o envio; o termo submetido, resultados e cidade selecionada pertencem ao hook. Não usar estado global, persistência, cache ou biblioteca externa.
+**Contrato da implementação solicitada:** `src/hooks/useWeather.ts` expõe `status` (`idle | loading | success | error | empty`), `data: WeatherData | null`, `cities: City[]`, `error: WeatherError | null`, `query: string`, e ações assíncronas `search(name)`, `selectCity(city)` e `retry()`. `search` remove espaços externos do termo, busca cidades e carrega automaticamente o clima da primeira; uma lista sem resultados termina em `empty`. Essa seleção automática substitui, neste contrato, a seleção exclusivamente manual originalmente prevista na spec. `selectCity` consulta outra cidade sem repetir a busca nem alterar o termo e a lista. `retry` repete a última operação de serviço (busca ou clima), inclusive após sucesso ou resultado vazio; antes de qualquer operação, não faz nada. A falha no clima após uma busca bem-sucedida repete somente o clima. O estado único usa `useState` tipado para este contrato simplificado, sem estados parciais nem unidade; novas operações limpam dados e erros anteriores. Um identificador incremental descarta respostas obsoletas e invalida requisições na desmontagem, sem cancelar o transporte. O `App` de demonstração permanece inalterado nesta entrega. O modelo ampliado abaixo permanece como referência para futura integração.
+
+**Integração posterior solicitada:** `App` agora consome esse contrato simplificado, substituindo o mock e removendo os controles de demonstração. Renderiza os cinco estados do hook, repassa a mensagem do erro e chama `retry` com foco no conteúdo. `unit` permanece em `useState` local ao `App` e é passada para `UnitToggle`, `CurrentWeather` e `ForecastList`; alterná-la não consulta serviços. O hook seleciona automaticamente a primeira cidade; seleção manual na UI e estados parciais ficam para outro incremento.
+
+No modelo ampliado de referência, o estado da aplicação vive em um único hook `useWeather`, chamado por `App`, e é mantido em memória com `useReducer` tipado. Componentes recebem estado e callbacks por props; não fazem requisições nem mantêm cópias do estado meteorológico. O campo de texto pode permanecer local a `CitySearch` até o envio; o termo submetido, resultados e cidade selecionada pertencem ao hook. Não usar estado global, persistência, cache ou biblioteca externa.
 
 ```ts
 type ResourceState<T> =
@@ -252,9 +260,9 @@ A unidade começa em `celsius` e permanece apenas na memória da página aberta.
 ## Tratamento de erros
 
 - **Validação local:** termo vazio após trim ou com caracteres de controle não inicia rede; exibir a mensagem de validação de RF-01 e manter o foco no campo.
-- **Rede:** rejeição do `fetch` sem resposta HTTP vira `WeatherError` de tipo `network`; encerrar loading, preservar termo/cidade para retry e exibir mensagem da operação. Não transformar a falha em busca vazia.
+- **Rede:** rejeição do `fetch` sem resposta HTTP vira `WeatherServiceError` de tipo `network` com a mensagem “Falha de rede.”; encerrar loading e preservar termo/cidade para retry. Não transformar a falha em busca vazia.
 - **API/HTTP:** resposta HTTP fora de 2xx vira tipo `http`; JSON malformado, campos obrigatórios ausentes ou tipos incompatíveis viram `invalid-response`. Ambos encerram loading e usam a mensagem correspondente à operação, com ação “Tentar novamente”.
-- **Timeout:** cada chamada usa `AbortController` com limite de 10 segundos. Distinguir o abort por timeout de cancelamento intencional; timeout vira tipo `timeout`, apresenta “A consulta excedeu o tempo limite. Tente novamente.” e permite repetição manual. Não há retry automático.
+- **Timeout:** `fetchWithTimeout` em `src/services/weatherService.ts` compartilha o transporte entre busca e clima, usando `AbortController` com limite de 10 segundos e `clearTimeout` no `finally`. Conforme o ajuste solicitado, `AbortError` vira `WeatherServiceError` de tipo `timeout` com a mensagem “A requisição demorou demais.”, substituindo a mensagem originalmente prevista na spec. O helper não recebe sinal de cancelamento externo. Não há retry automático.
 - **Busca sem resultados:** resposta válida com lista vazia define `search: empty`, mostra “Nenhuma cidade encontrada.” e não chama forecast.
 - **Resposta parcial:** validar condições atuais e previsão independentemente. Condições atuais sem temperatura, código WMO, horário ou fuso válidos definem `current: error`. Na previsão, 1–4 registros válidos definem `forecast: partial`; zero válidos definem `forecast: error`. Não inventar dados nem marcar respostas incompletas como sucesso.
 - **Nova seleção durante requisição:** limpar imediatamente os dados meteorológicos da cidade anterior. Associar cada resposta à cidade que iniciou a chamada e ignorá-la se a seleção atual mudou; impedir que dados antigos reapareçam.

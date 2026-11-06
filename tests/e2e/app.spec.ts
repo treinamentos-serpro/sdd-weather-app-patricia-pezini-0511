@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { openWeatherScenario } from './weatherScenario';
 
-test('protótipo responsivo: busca, unidade e cenários', async ({ page }) => {
+test('consulta responsiva: busca, unidade e retry', async ({ page }) => {
   await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
-  await page.goto('/');
+  await openWeatherScenario(page, 'idle');
   await expect(page.getByRole('heading', { name: 'Consulte o clima de uma cidade' })).toBeVisible();
   await page.getByRole('searchbox').fill('São Paulo');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
@@ -21,10 +22,11 @@ test('protótipo responsivo: busca, unidade e cenários', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Fahrenheit (°F)' }).click();
   await expect(page.getByRole('region', { name: 'São Paulo' })).toContainText('73 °F');
-  await page.getByLabel('Cenário de demonstração').selectOption('loading');
+  await openWeatherScenario(page, 'loading');
   await expect(page.getByRole('status').filter({ hasText: 'Carregando...' })).toBeVisible();
   await expect(page.getByRole('searchbox')).toBeDisabled();
-  await page.getByLabel('Cenário de demonstração').selectOption('error');
+  await openWeatherScenario(page, 'error');
+  await page.getByRole('button', { name: 'Fahrenheit (°F)' }).click();
   await page.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByRole('region', { name: 'São Paulo' })).toContainText('73 °F');
   await page.reload();

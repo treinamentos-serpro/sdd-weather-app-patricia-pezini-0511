@@ -1,41 +1,38 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
+import { openWeatherScenario } from './weatherScenario';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
   await page.goto('/');
 });
 
-test('cenários sem violações automatizadas WCAG A/AA e sem overflow desde 320px', async ({
-  page,
-}) => {
-  for (const width of [320, 375, 640, 1024, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const scenario of ['idle', 'loading', 'empty', 'error', 'success']) {
-      await page.getByLabel('Cenário de demonstração').selectOption(scenario);
-      if (scenario === 'success') {
-        await page.getByRole('button', { name: 'Fahrenheit (°F)' }).click();
-      }
+for (const scenario of ['idle', 'loading', 'empty', 'error', 'success'] as const) {
+  test(`${scenario}: sem violações automatizadas WCAG A/AA e sem overflow desde 320px`, async ({
+    page,
+  }) => {
+    await openWeatherScenario(page, scenario);
+    if (scenario === 'success') {
+      await page.getByRole('button', { name: 'Fahrenheit (°F)' }).click();
+    }
+    for (const width of [320, 375, 640, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth,
       );
       expect(overflow, `${scenario} em ${width}px`).toBe(false);
     }
-  }
-
-  for (const scenario of ['idle', 'loading', 'empty', 'error', 'success']) {
-    await page.getByLabel('Cenário de demonstração').selectOption(scenario);
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .analyze();
     expect(results.violations, scenario).toEqual([]);
-  }
-});
+  });
+}
 
 test('texto a 200% continua dentro da tela em 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.addStyleTag({ content: 'html { font-size: 200%; }' });
-  await page.getByLabel('Cenário de demonstração').selectOption('success');
+  await openWeatherScenario(page, 'success');
   await page.getByRole('button', { name: 'Fahrenheit (°F)' }).click();
   const overflowing = await page
     .locator('main, header, aside, footer')
@@ -56,13 +53,17 @@ test('skip link, busca e retry mantêm foco útil por teclado', async ({ page })
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();
 
+  await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+    route.fulfill({ json: {} }),
+  );
   await page.getByRole('searchbox').focus();
   await page.keyboard.type('Curitiba');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Nenhuma cidade encontrada.');
-  await expect(page.getByRole('searchbox')).toBeFocused();
+  await expect(page.getByRole('searchbox')).toBeEnabled();
+  await expect(page.getByRole('searchbox')).toHaveValue('Curitiba');
 
-  await page.getByLabel('Cenário de demonstração').selectOption('error');
+  await openWeatherScenario(page, 'error');
   await page.getByRole('button', { name: 'Tentar novamente' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();
@@ -70,7 +71,7 @@ test('skip link, busca e retry mantêm foco útil por teclado', async ({ page })
 
 test('movimento reduzido desativa o spinner', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.getByLabel('Cenário de demonstração').selectOption('loading');
+  await openWeatherScenario(page, 'loading');
   const animations = await page
     .getByRole('status')
     .filter({ hasText: 'Carregando...' })
